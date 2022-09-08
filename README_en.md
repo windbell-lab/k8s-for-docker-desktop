@@ -4,9 +4,20 @@
 
 NOTE: 
 
-* The master branch is tested with Docker Desktop for Mac/Windows version 2.5.0.0 Edge (with Docker CE 20.10.0 and Kubernetes 1.19.3). 
+* The master branch is tested with Docker Desktop for Mac/Windows version 4.8.0 (with Docker CE 20.10.14 and Kubernetes 1.24.0). 
 * If you want to use with other version, pls check version of Kubernetes，Docker -> About Docker Desktop
     ![about](images/about.png)
+    * For Kubernetes v1.24.0, please use the v1.24.0 branch ```git checkout v1.24.0```
+    * For Kubernetes v1.23.4, please use the v1.23.4 branch ```git checkout v1.23.4```
+    * For Kubernetes v1.22.5, please use the v1.22.5 branch ```git checkout v1.22.5```
+    * For Kubernetes v1.22.4, please use the v1.22.4 branch ```git checkout v1.22.4```
+    * For Kubernetes v1.21.4, please use the v1.21.1 branch ```git checkout v1.21.5```
+    * For Kubernetes v1.21.4, please use the v1.21.1 branch ```git checkout v1.21.4```
+    * For Kubernetes v1.21.3, please use the v1.21.1 branch ```git checkout v1.21.3```
+    * For Kubernetes v1.21.2, please use the v1.21.1 branch ```git checkout v1.21.2```
+    * For Kubernetes v1.21.1, please use the v1.21.1 branch ```git checkout v1.21.1```
+    * For Kubernetes v1.19.3, please use the v1.19.3 branch ```git checkout v1.19.3```
+    * For Kubernetes v1.19.2, please use the v1.19.2 branch ```git checkout v1.19.2```
     * For Kubernetes v1.18.8, please use the v1.18.8 branch ```git checkout v1.18.8```
     * For Kubernetes v1.18.6, please use the v1.18.6 branch ```git checkout v1.18.6```
     * For Kubernetes v1.18.3, please use the v1.18.3 branch ```git checkout v1.18.3```
@@ -53,6 +64,31 @@ Enable Kubernetes, and wait a while for Kubernetes is running
 
 ![k8s](images/k8s.png)
 
+**TIPS**：
+
+On Mac:
+
+If facing problems when deploy Kubernetes, you can check ocker desktop application's log to get realtime log：
+
+```bash
+pred='process matches ".*(ocker|vpnkit).*"
+  || (process in {"taskgated-helper", "launchservicesd", "kernel"} && eventMessage contains[c] "docker")'
+/usr/bin/log stream --style syslog --level=debug --color=always --predicate "$pred"
+```
+
+On Windows:
+
+If facing problems when deploy Kubernetes, you can check docker log in C:\ProgramData\DockerDesktop\service.txt, check Kuberneteslog in C:\Users\yourUserName\AppData\Local\Docker\log.txt
+
+
+**problem diagnosis**：
+
+If you see Kubernetes stuck in Starting, please refer: 
+
+* [Issue 3769(comment)](https://github.com/docker/for-win/issues/3769#issuecomment-486046718) or [Issue 3649(comment)](https://github.com/docker/for-mac/issues/3649#issuecomment-497441158)
+  * On MacOS, execute ```rm -fr '~/Library/Group\ Containers/group.com.docker/pki'```
+  * On Windows, delete folders 'C:\ProgramData\DockerDesktop\pki' and 'C:\Users\yourUserName\AppData\Local\Docker\pki'
+* [Issue 1962(comment)](https://github.com/docker/for-win/issues/1962#issuecomment-431091114)
 
 ### Config Kubernetes
 
@@ -77,13 +113,13 @@ kubectl get nodes
 #### Install Kubernetes dashboard
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.1/aio/deploy/recommended.yaml
 ```
 
 or
 
 ```shell
-kubectl create -f kubernetes-dashboard.yaml
+kubectl apply -f kubernetes-dashboard.yaml
 ```
 
 Check Kubernetes Dashboard status
@@ -104,11 +140,17 @@ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kube
 
 #### Config Token for dashboard
 
+Authorize `kube-system` default service account
+
+```shell
+kubectl apply -f kube-system-default.yaml
+```
+
 For Mac
 
 ```bash
 TOKEN=$(kubectl -n kube-system describe secret default| awk '$1=="token:"{print $2}')
-kubectl config set-credentials docker-for-desktop --token="${TOKEN}"
+kubectl config set-credentials docker-desktop --token="${TOKEN}"
 echo $TOKEN
 ```
 
@@ -116,7 +158,7 @@ For Windows
 
 ```cmd
 $TOKEN=((kubectl -n kube-system describe secret default | Select-String "token:") -split " +")[1]
-kubectl config set-credentials docker-for-desktop --token="${TOKEN}"
+kubectl config set-credentials docker-desktop --token="${TOKEN}"
 echo $TOKEN
 ```
 
@@ -134,6 +176,68 @@ Mac: $HOME/.kube/config
 ```
 
 Click login, go to Kubernetes Dashboard
+
+### Config Ingress
+
+Note: If you are testing Istio, donot need to install Ingress
+
+#### Install Ingress
+
+[Installation Notes](https://github.com/kubernetes/ingress-nginx/blob/master/docs/deploy/index.md)
+```
+- If the installation script cannot be installed, you can jump to this address to view the latest operations
+```
+
+Install
+```shell
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.0/deploy/static/provider/cloud/deploy.yaml
+```
+Or
+
+```shell
+kubectl apply -f ingress-nginx-controller.yaml
+```
+
+Check
+
+```shell
+kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx
+```
+
+#### Test the sample app
+
+
+Deploy the test application, see [Community Article](https://matthewpalmer.net/kubernetes-app-developer/articles/kubernetes-ingress-guide-nginx-example.html) for details
+
+
+```shell
+kubectl create -f sample/apple.yaml
+kubectl create -f sample/banana.yaml
+kubectl create -f sample/ingress.yaml
+```
+
+Test the sample app
+
+```bash
+$ curl -kL http://localhost/apple
+apple
+$ curl -kL http://localhost/banana
+banana
+```
+
+Remove the sample app
+
+```shell
+kubectl delete -f sample/apple.yaml
+kubectl delete -f sample/banana.yaml
+kubectl delete -f sample/ingress.yaml
+```
+
+#### Delete Ingress
+
+```shell
+kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.0/deploy/static/provider/cloud/deploy.yaml
+```
 
 ### Install Helm
 
